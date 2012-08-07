@@ -2,6 +2,7 @@
 
 import sys
 import argparse
+import string
 import re
 from xml.etree.ElementTree import Element, SubElement, Comment, tostring
 from xml.dom import minidom
@@ -45,7 +46,9 @@ class ProjectOrTask(Element):
 
     def markdownNotes(self):
         if self.notes is not None:
+            trace("markdownNotes: '%s'" % self.notes.text)
             self.notes.text = markdown.markdown(self.notes.text)
+            trace("markdowned: '%s'" % self.notes.text)
 
 class Project(ProjectOrTask):
     def __init__(self, parentOrSibling, name, indent):
@@ -54,11 +57,6 @@ class Project(ProjectOrTask):
 class Task(ProjectOrTask):
     def __init__(self, parentOrSibling, text, indent):
         ProjectOrTask.__init__(self, parentOrSibling, 'task', text, indent)
-
-#def prettyprint(xml):
-#    rough_string = tostring(xml, 'utf-8')
-#    reparsed = minidom.parseString(rough_string)
-#    return reparsed.toprettyxml(indent="  ")
 
 def prettyprint(xml):
     rough_string = tostring(xml, 'utf-8')
@@ -71,9 +69,48 @@ def trace(text):
     if traceEnabled:
         sys.stderr.write('%s\n' % text)
 
-tagre = ' @[^ (]*(?:\([^)]*\))?'
+tagre = ' @[^ (:]*(?:\([^)]*\))?'
 
-def main(inputfile = None, outfile = None, markdown = False):
+def getIndent(line, tabsize):
+    trace("get indent '%s'" % line)
+    indent = 0
+    pos = 0
+    c = line[pos]
+    while c in string.whitespace:
+        if c == '\t':
+            trace ("tab")
+            indent = indent + tabsize
+        elif c == ' ':
+            trace("space")
+            indent = indent + 1
+        elif c == '\n':
+            trace("Reached end of line.")
+            break
+        else:
+            trace("Unhandled whitespace char in indent: 0x%x" % c)
+            indent = indent + 1
+        pos = pos + 1
+        if pos >= len(line):
+            trace("Ran out of line - it's all whitespace")
+            break
+        c = line[pos]
+    trace("got indent %d" % indent)
+    return indent
+        
+def removeIndent(line, indent, tabsize):
+    if indent > getIndent(line, tabsize):
+        trace("Not enough indent (%d > %d) in line '%s'" % (indent, getIndent(line, tabsize), line))
+        return line.lstrip()
+    else:
+        trace("Removing indent of %d" % indent)
+        while indent > 0:
+            c = line[0]
+            line = line[1:]
+            indent = indent - getIndent(c, tabsize)
+            trace("Removed '%c' (%d left to go)" % (c, indent))
+        return line
+
+def main(inputfile = None, outfile = None, tabsize = 2, markdown = False):
     root = Project(None, 'root', -1)
     current = root
     inNotes = False
@@ -86,8 +123,7 @@ def main(inputfile = None, outfile = None, markdown = False):
 
     for line in inf:
         trace("Reading line '%s'" % line)
-        unindentedline = line.lstrip()
-        indent = len(line) - len(unindentedline)
+        indent = getIndent(line, tabsize)
         notags = re.sub(tagre, '', line).strip()
         trace("notags: '%s'" % notags)
         tags = [tag[2:].strip() for tag in re.findall(tagre, line)]
@@ -109,12 +145,11 @@ def main(inputfile = None, outfile = None, markdown = False):
             current = Project(current, projname, indent)
             inNotes = False
         elif (inNotes) or (len(line.strip()) > 0):
-            if indent >= current.indent:
-                notesline = line[indent:].rstrip()
-            else:
-                notesline = line.strip()
+            if not inNotes:
+                inNotes = True
+                notesIndent = getIndent(line, tabsize)
+            notesline = removeIndent(line, notesIndent, tabsize)
             trace("Notes: '%s'" % notesline)
-            inNotes = True
             current.addNotes(notesline)
             tags = []
 
@@ -131,6 +166,7 @@ def main(inputfile = None, outfile = None, markdown = False):
 parser = argparse.ArgumentParser(description="Turn taskpaper text file into XML")
 parser.add_argument("-i", "--input", action="store", dest="infile")
 parser.add_argument("-o", "--output", action="store", dest="outfile")
+parser.add_argument("-t", "--tabsize", action="store", dest="tabsize", type=int, default="2")
 parser.add_argument("-m", "--markdown", action="store_true", dest="markdown")
 parser.add_argument("-d", "--debug", action="store_true", dest="debug")
 
@@ -149,5 +185,5 @@ if results.markdown:
         sys.stderr.write("To use markdown, install the markdown module, from http://pypi.python.org/pypi/Markdown/")
         results.markdown = False
 
-main(results.infile, results.outfile, results.markdown)
+main(results.infile, results.outfile, results.tabsize, results.markdown)
 

@@ -1,0 +1,81 @@
+
+body {
+  font-family: Helvetica, sans-serif;
+  color: #444;
+}
+
+ul {
+  margin: 0 0 4px 9px;
+  padding: 0;
+  list-style: none;
+}
+
+.project {
+  font-weight: bold;
+}
+
+.task {
+  font-weight: normal;
+}
+
+.notes {
+  margin: 0;
+  padding: 0;
+  color: #999;
+  font-size: 0.9em;
+}
+
+.notes ul {
+  list-style: disc;
+  padding: 0 0 0 18px;
+  margin: 0 0 9px 9px;
+}
+
+.notes ul ul {
+  list-style: circle;
+}
+
+.notes ul ul ul {
+  list-style: none;
+}
+.notes ul ul ul li:before { 
+  content:"-"; 
+  position:relative; 
+  left:-5px;
+}
+.notes ul ul ul li { 
+  text-indent:-5px; 
+}
+
+.notes li {
+  margin: 0 0 3px 0;
+}
+
+.notes a {
+  color: #66d;
+}
+
+p {
+  margin: 0 0 9px 9px;
+  padding: 0;
+}
+
+pre {
+  margin: 0 0 9px 16px;
+}
+
+.tag {
+  color: #e94;
+}
+
+/*
+ * Custom tags
+ */
+
+.tag.tag-next {
+  color: purple;
+}
+
+.tag.tag-today {
+  color: red;
+}
